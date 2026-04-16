@@ -20,22 +20,44 @@ class DonHangController extends BoDieuKhien
 {
     public function index(): View
     {
-        $search = request('q');
+        $filters = [
+            'q' => trim((string) request('q', '')),
+            'status' => request('status'),
+            'stock' => request('stock'),
+            'from' => request('from'),
+            'to' => request('to'),
+        ];
 
-        $orders = DonHang::with(['customer', 'items'])
-            ->when($search, function ($query, $search) {
-                $query->where(function ($innerQuery) use ($search) {
-                    $innerQuery->where('code', 'like', '%'.$search.'%')
-                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                            $customerQuery->where('name', 'like', '%'.$search.'%');
+        $ordersQuery = DonHang::query()
+            ->when($filters['q'] !== '', function ($query) use ($filters) {
+                $query->where(function ($innerQuery) use ($filters) {
+                    $innerQuery->where('code', 'like', '%'.$filters['q'].'%')
+                        ->orWhereHas('customer', function ($customerQuery) use ($filters) {
+                            $customerQuery->where('name', 'like', '%'.$filters['q'].'%');
                         });
                 });
             })
+            ->when($filters['status'], fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['stock'] === 'applied', fn ($query) => $query->where('stock_applied', true))
+            ->when($filters['stock'] === 'pending', fn ($query) => $query->where('stock_applied', false))
+            ->when($filters['from'], fn ($query, $from) => $query->whereDate('order_date', '>=', $from))
+            ->when($filters['to'], fn ($query, $to) => $query->whereDate('order_date', '<=', $to));
+
+        $overview = [
+            'total_orders' => (clone $ordersQuery)->count(),
+            'total_amount' => (float) (clone $ordersQuery)->sum('total_amount'),
+            'completed_orders' => (clone $ordersQuery)->where('status', DonHang::STATUS_COMPLETED)->count(),
+            'processing_orders' => (clone $ordersQuery)->where('status', DonHang::STATUS_PROCESSING)->count(),
+            'pending_stock_orders' => (clone $ordersQuery)->where('stock_applied', false)->count(),
+        ];
+
+        $orders = (clone $ordersQuery)
+            ->with(['customer', 'items'])
             ->latest('order_date')
             ->paginate(10)
             ->withQueryString();
 
-        return view('quan_tri.don_hang.danh_sach', compact('orders'));
+        return view('quan_tri.don_hang.danh_sach', compact('orders', 'overview', 'filters'));
     }
 
     public function create(): View

@@ -20,22 +20,44 @@ class PhieuNhapController extends BoDieuKhien
 {
     public function index(): View
     {
-        $search = request('q');
+        $filters = [
+            'q' => trim((string) request('q', '')),
+            'status' => request('status'),
+            'stock' => request('stock'),
+            'from' => request('from'),
+            'to' => request('to'),
+        ];
 
-        $purchaseReceipts = PhieuNhap::with(['supplier', 'items'])
-            ->when($search, function ($query, $search) {
-                $query->where(function ($innerQuery) use ($search) {
-                    $innerQuery->where('code', 'like', '%'.$search.'%')
-                        ->orWhereHas('supplier', function ($supplierQuery) use ($search) {
-                            $supplierQuery->where('name', 'like', '%'.$search.'%');
+        $receiptsQuery = PhieuNhap::query()
+            ->when($filters['q'] !== '', function ($query) use ($filters) {
+                $query->where(function ($innerQuery) use ($filters) {
+                    $innerQuery->where('code', 'like', '%'.$filters['q'].'%')
+                        ->orWhereHas('supplier', function ($supplierQuery) use ($filters) {
+                            $supplierQuery->where('name', 'like', '%'.$filters['q'].'%');
                         });
                 });
             })
+            ->when($filters['status'], fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['stock'] === 'applied', fn ($query) => $query->where('stock_applied', true))
+            ->when($filters['stock'] === 'pending', fn ($query) => $query->where('stock_applied', false))
+            ->when($filters['from'], fn ($query, $from) => $query->whereDate('receipt_date', '>=', $from))
+            ->when($filters['to'], fn ($query, $to) => $query->whereDate('receipt_date', '<=', $to));
+
+        $overview = [
+            'total_receipts' => (clone $receiptsQuery)->count(),
+            'total_amount' => (float) (clone $receiptsQuery)->sum('total_amount'),
+            'imported_receipts' => (clone $receiptsQuery)->where('status', PhieuNhap::STATUS_IMPORTED)->count(),
+            'draft_receipts' => (clone $receiptsQuery)->where('status', PhieuNhap::STATUS_DRAFT)->count(),
+            'pending_stock_receipts' => (clone $receiptsQuery)->where('stock_applied', false)->count(),
+        ];
+
+        $purchaseReceipts = (clone $receiptsQuery)
+            ->with(['supplier', 'items'])
             ->latest('receipt_date')
             ->paginate(10)
             ->withQueryString();
 
-        return view('quan_tri.phieu_nhap.danh_sach', compact('purchaseReceipts'));
+        return view('quan_tri.phieu_nhap.danh_sach', compact('purchaseReceipts', 'overview', 'filters'));
     }
 
     public function create(): View
