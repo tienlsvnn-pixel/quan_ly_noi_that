@@ -57,17 +57,17 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
-    public function isCustomer(): bool
+    public function isKhachHang(): bool
     {
         return $this->role === self::ROLE_CUSTOMER;
     }
 
     public function customerProfile(): HasOne
     {
-        return $this->hasOne(Customer::class);
+        return $this->hasOne(KhachHang::class, 'user_id');
     }
 
-    public function getOrCreateCustomerProfile(): Customer
+    public function getOrCreateKhachHangProfile(): KhachHang
     {
         $profile = $this->customerProfile()->first();
 

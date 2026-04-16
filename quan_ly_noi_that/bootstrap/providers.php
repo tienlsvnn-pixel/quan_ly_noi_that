@@ -1,7 +1,7 @@
 <?php
 
-use App\Providers\AppServiceProvider;
+use App\Providers\NhaCungCapUngDung;
 
 return [
-    AppServiceProvider::class,
+    NhaCungCapUngDung::class,
 ];

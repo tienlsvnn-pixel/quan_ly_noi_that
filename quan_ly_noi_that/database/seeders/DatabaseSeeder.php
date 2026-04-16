@@ -2,15 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\Customer;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Product;
-use App\Models\PurchaseReceipt;
-use App\Models\PurchaseReceiptItem;
-use App\Models\StockMovement;
-use App\Models\Supplier;
+use App\Models\DanhMuc;
+use App\Models\KhachHang;
+use App\Models\DonHang;
+use App\Models\ChiTietDonHang;
+use App\Models\SanPham;
+use App\Models\PhieuNhap;
+use App\Models\ChiTietPhieuNhap;
+use App\Models\BienDongKho;
+use App\Models\NhaCungCap;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
                 ['email' => 'test@example.com'],
                 [
                     'name' => 'Khách hàng thử nghiệm',
-                    'password' => Hash::make('Customer@123456'),
+                    'password' => Hash::make('KhachHang@123456'),
                     'role' => User::ROLE_CUSTOMER,
                 ]
             );
@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
             $customerUser = User::where('email', 'test@example.com')->first();
 
             if ($customerUser) {
-                Customer::updateOrCreate(
+                KhachHang::updateOrCreate(
                     ['user_id' => $customerUser->id],
                     [
                         'name' => $customerUser->name,
@@ -62,7 +62,7 @@ class DatabaseSeeder extends Seeder
             ];
 
             $categories = collect($categoryData)->map(function (array $item) {
-                return Category::updateOrCreate(
+                return DanhMuc::updateOrCreate(
                     ['slug' => Str::slug($item['name'])],
                     [
                         'name' => $item['name'],
@@ -82,7 +82,7 @@ class DatabaseSeeder extends Seeder
             ];
 
             $products = collect($productData)->map(function (array $item) use ($categories) {
-                return Product::updateOrCreate(
+                return SanPham::updateOrCreate(
                     ['sku' => $item['sku']],
                     [
                         'category_id' => $categories[$item['category']]->id ?? null,
@@ -103,7 +103,7 @@ class DatabaseSeeder extends Seeder
                 ['name' => 'Trần Thị Bình', 'email' => 'binh.tran@example.com', 'phone' => '0912345678', 'city' => 'Hà Nội'],
                 ['name' => 'Lê Minh Châu', 'email' => 'chau.le@example.com', 'phone' => '0987654321', 'city' => 'Đà Nẵng'],
             ])->map(function (array $item) {
-                return Customer::updateOrCreate(
+                return KhachHang::updateOrCreate(
                     ['email' => $item['email']],
                     [
                         'name' => $item['name'],
@@ -119,7 +119,7 @@ class DatabaseSeeder extends Seeder
                 ['name' => 'Nội thất Hoàng Gia', 'contact_person' => 'Trần Minh Phúc', 'phone' => '0908111222', 'email' => 'phuc@hoanggia.vn', 'city' => 'TP. Hồ Chí Minh'],
                 ['name' => 'Kho gỗ An Phát', 'contact_person' => 'Nguyễn Đức An', 'phone' => '0911444555', 'email' => 'an@anphat.vn', 'city' => 'Bình Dương'],
             ])->map(function (array $item) {
-                return Supplier::updateOrCreate(
+                return NhaCungCap::updateOrCreate(
                     ['email' => $item['email']],
                     [
                         'name' => $item['name'],
@@ -175,7 +175,7 @@ class DatabaseSeeder extends Seeder
                     return $product->price * $item['quantity'];
                 });
 
-                $order = Order::updateOrCreate(
+                $order = DonHang::updateOrCreate(
                     ['code' => $orderData['code']],
                     [
                         'customer_id' => $orderData['customer']->id,
@@ -192,7 +192,7 @@ class DatabaseSeeder extends Seeder
                 foreach ($orderData['items'] as $item) {
                     $product = $products[$item['sku']];
 
-                    OrderItem::create([
+                    ChiTietDonHang::create([
                         'order_id' => $order->id,
                         'product_id' => $product->id,
                         'product_name' => $product->name,
@@ -230,7 +230,7 @@ class DatabaseSeeder extends Seeder
             foreach ($purchaseReceipts as $receiptData) {
                 $totalAmount = collect($receiptData['items'])->sum(fn (array $item) => $item['unit_cost'] * $item['quantity']);
 
-                $receipt = PurchaseReceipt::updateOrCreate(
+                $receipt = PhieuNhap::updateOrCreate(
                     ['code' => $receiptData['code']],
                     [
                         'supplier_id' => $receiptData['supplier']->id,
@@ -247,7 +247,7 @@ class DatabaseSeeder extends Seeder
                 foreach ($receiptData['items'] as $item) {
                     $product = $products[$item['sku']];
 
-                    PurchaseReceiptItem::create([
+                    ChiTietPhieuNhap::create([
                         'purchase_receipt_id' => $receipt->id,
                         'product_id' => $product->id,
                         'product_name' => $product->name,
@@ -269,7 +269,7 @@ class DatabaseSeeder extends Seeder
 
             foreach ($stockMovementData as $movement) {
                 $product = $products[$movement['sku']];
-                $existing = StockMovement::where('reference_code', $movement['reference_code'])->first();
+                $existing = BienDongKho::where('reference_code', $movement['reference_code'])->first();
 
                 if ($existing) {
                     continue;
@@ -283,7 +283,7 @@ class DatabaseSeeder extends Seeder
                     ? $stockBefore + $movement['quantity']
                     : max(0, $stockBefore - $movement['quantity']);
 
-                StockMovement::create([
+                BienDongKho::create([
                     'product_id' => $product->id,
                     'type' => $movement['type'],
                     'quantity' => $movement['quantity'],
